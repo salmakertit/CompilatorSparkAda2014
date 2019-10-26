@@ -1,0 +1,320 @@
+#include <stdio.h>
+#include <stdbool.h>
+#include <string.h>
+#include "analyseur_spark.h"
+#define debug false
+
+typetoken token;
+bool follow_token;
+
+int main() {
+  _read_token();
+   if (_if_statement()) {
+   	puts("\n---Valide_Syntax --- \n");
+   } else {
+    puts("\n---Invalide_Syntax  --- \n");
+   }
+  return 0;
+}
+
+void _read_token(){
+	if(follow_token){
+		follow_token=false;
+	}
+	else {
+		token=(typetoken)yylex();
+	}
+}
+
+/*
+if_statement :: "if" condition "then" sequence_of_statement elsif_statement if_aux
+*/
+
+bool _if_statement() {
+	if (debug) printf("in_if_statement \n");
+	bool result = false;
+	if(token == IF) {
+		_read_token();
+		if(_condition()) {
+			_read_token();
+			if(token == THEN) {
+				_read_token();
+				if(_suquence_of_statement()) {
+					_read_token();
+					if(_elsif_statement()) {
+						_read_token();
+					if(_if_aux()) {
+						result = true;
+					}
+				}
+			}
+		}
+	}
+	if (debug) printf("out_if_statement \n");
+	return result;
+}
+
+/*
+elsif_statement :: "elsif" _condition "then" sequence_of_statement elsif_statement | epsilon
+Nullable(elsif_statement = true) --> follows = {end if ; | else}
+*/
+bool _elsif_statement() {
+	if (debug) printf("in_elsif_statement \n");
+	bool result = false;
+	if(token == ELSIF) {
+		_lire_token();
+		if(_condition()) {
+			_lire_token();
+			if(_suquence_of_statement()) {
+				_lire_token();
+				if(_elsif_statement()) {
+					result = true;
+				}
+			}
+		}
+	}
+	else if(token == ELSE) {
+		follow_token = true;
+		result = true;
+	}
+	else if(token == ENDIF) {
+		follow_token = true;
+		result = true;
+	}
+	if (debug) printf("out_elsif_statement \n");
+	return result;
+}
+
+/*
+if_aux  :: else sequence_of_statement "end if" ;| "end if";
+*/
+bool if_aux() {
+	if (debug) printf("in_if_aux \n");
+	bool result = false;
+	if(token == ELSE) {
+		_lire_token();
+		if(_suquence_of_statement()) {
+			_lire_token();
+			if(token == ENDIF) {
+				_lire_token;
+				if(token == PVIRG) {
+					result = true;
+				}
+			}
+		}
+	}
+	else if(token == ENDIF) {
+		_lire_token();
+		if(token == PVIRG) {
+			_lire_token();
+			result = true;
+		}
+	}
+	if (debug) printf("out_if_aux \n");
+	return result;
+}
+
+
+/*
+condition:: _relation relation_aux  ---> condition == expression
+*/
+bool _condition() {
+	if (debug) printf("in_condition \n");
+	bool result = false;
+		if(_relation()){
+      _lire_token();
+      if (_relation_aux) {
+        result = true;
+      }
+    }
+	if (debug) printf("out_condition \n");
+	return result;
+}
+
+/*
+relation:: simple_expression (=, /=, >, >=, <, <=) simple_expression
+		   | simple_expression [not] "in" (range | subtype_mark)
+*/
+bool _relation() {
+	if (debug) printf("in_relation \n");
+	bool result = false;
+	if(_simple_expression()) {
+		_read_token();
+		if(token == DIFF || token == EQ || token == LESS_THAN || token == GREATER_THAN ||
+			token == LESS_THAN_EQ || token == GREATER_THAN_EQ) {
+			_read_token();
+			if(_simple_expression()) {
+				result = true;
+			}
+		}
+	}
+	if (debug) printf("out_relation \n");
+	return result;
+}
+
+/*
+relation_aux:: operation_aux relation_aux | epsilon
+operation_aux:: op_aux relation
+op_aux:: "and" | "or"
+Nullable = true
+follows = THEN
+*/
+bool relation_aux() {
+	if (debug) printf("in_relation_aux \n");
+	bool result = false;
+	if(_operation_aux()) {
+		_lire_token();
+		if(token == AND) {
+
+		}
+	}
+
+	if (debug) printf("out_relation_aux \n");
+	return result;
+}
+
+/*
+  operation_aux:: op_aux relation
+*/
+bool _operation_aux(){
+  if(debug) printf("in_operation_aux \n");
+  bool result = false;
+  if(_op_aux()){
+    _lire_token();
+    if(_relation()){
+      result = true;
+    }
+  }
+  if(debug) printf("out_operation_aux \n");
+  return result;
+}
+
+/*
+  op_aux:: "and" | "or" | "xor"
+*/
+bool _op_aux(){
+  if(debug) printf("in_op_aux \n");
+  bool result = false;
+  if(token == OR){
+    result = true;
+  }
+  else if(token == AND){
+    result = true;
+  }
+  if(token == XOR){
+    result = true;
+  }
+  if(debug) printf("out_op_aux \n");
+  return result;
+}
+
+/*
+simple_expression:: simple_expression_pre _term simple_expression_aux
+					simple_expression_pre ---> "+" | "-" | epsilon
+					simple_expression_aux ---> {("+" | "-" | "&") term} | epsilon
+                                      token == PLUS_SIGN || token == HYPHEN_MINUS || token == AMPERSAND
+          simple_expression_aux ---> binary_op term simple_expression_aux | epsilon
+          binary_op ---> "+" | "-" | "&"
+*/
+bool _simple_expression() {
+	if (debug) printf("in_simple_expression \n");
+	bool result = false;
+		if(_simple_expression_pre()) {
+			_lire_token();
+      if(_term()){
+        _lire_token();
+        if(_simple_expression_aux){
+          result = true;
+        }
+      }
+		}
+	if (debug) printf("out_simple_expression \n");
+	return result;
+}
+/*
+term::
+ */
+bool _term() {
+	if (debug) printf("in_term \n");
+		bool result = false ;
+	if( token == V_NULL | token == NUMERIC | token == DECIMAL | token == STRING_LITERAL | token == IDF) {
+		result = true ;
+	}
+	if (debug) printf("out_term \n");
+	return result;
+}
+
+/*
+suquence_of_statement:: statement suquence_of_statement | epsilon
+ */
+
+bool _suquence_of_statement() {
+	if (debug) printf("in_suquence_of_statement \n");
+	bool result = false;
+	if(_null_statement() || _assignement_statement() || _exit_statement()){
+		result = true;
+	}
+	if (debug) printf("out_suquence_of_statement \n");
+	return result;
+}
+
+/*
+null_statement:: "null" ";"
+*/
+
+bool _null_statement() {
+	if (debug) printf("in_null_statement \n");
+	bool result = false;
+	if(token == V_NULL) {
+		_read_token();
+		if(token == PVIRG) {
+			result = true;
+		}
+	}
+	if (debug) printf("out_null_statement \n");
+	return result;
+}
+
+/*
+assignement_statement:: IDF ":=" expression ";"   // expression --> condition
+*/
+
+bool _assignement_statement() {
+	if (debug) printf("in_assignement_statement \n");
+	bool result = false;
+	if(token == IDF) {
+		_read_token();
+		if(token == ASSIGNMENT) {
+			_read_token();
+			if(token == ASSIGNMENT) {
+				_read_token();
+				if(_condition) {
+					_read_token();
+					if(token == PVIRG) {
+						result = true;
+					}
+				}
+			}
+
+		}
+	}
+	if (debug) printf("out_assignement_statement \n");
+	return result;
+}
+
+/*
+exit_statement:: "exit" _exit_aux ";"
+*/
+
+bool _exit_statement() {
+	if (debug) printf("in_exit_statement \n");
+	bool result = false;
+	if(token == EXIT) {
+		_read_token();
+		if(token == PVIRG) {
+			result = true;
+		}
+	}
+	if (debug) printf("out_exit_statement \n");
+	return result;
+}
